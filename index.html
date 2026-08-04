@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111820" />
+    <link rel="icon" href="data:," />
+    <meta
+      name="description"
+      content="竹蝉互动声景：用鼠标或触屏甩动竹蝉，听见随转速变化的夏日鸣响。"
+    />
+    <title>夏鸣 · 竹蝉互动声景</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="可甩动的竹蝉互动场景"></canvas>
+
+    <header class="brand" aria-label="夏鸣竹蝉">
+      <span class="brand__eyebrow">夏日声景 · 其一</span>
+      <h1>竹蝉</h1>
+      <p>一圈，一声夏</p>
+    </header>
+
+    <section class="readout" aria-live="polite">
+      <span class="readout__value" id="speedValue">0.0</span>
+      <span class="readout__unit">圈 / 秒</span>
+      <span class="readout__rule" aria-hidden="true"></span>
+      <span class="readout__count"><b id="wahCount">0</b> 次鸣响</span>
+    </section>
+
+    <nav class="controls" aria-label="互动控制">
+      <button
+        class="icon-button is-active"
+        id="soundButton"
+        type="button"
+        aria-pressed="true"
+        aria-label="关闭声音"
+        data-tooltip="声音"
+      >
+        <span aria-hidden="true">♪</span>
+      </button>
+      <button
+        class="icon-button"
+        id="autoButton"
+        type="button"
+        aria-pressed="false"
+        aria-label="开始自动演示"
+        data-tooltip="自动演示"
+      >
+        <span aria-hidden="true">↻</span>
+      </button>
+    </nav>
+
+    <div class="gesture" id="gesture" aria-hidden="true">
+      <span class="gesture__track"></span>
+      <span class="gesture__point"></span>
+    </div>
+
+    <button class="audio-gate" id="audioGate" type="button">唤醒夏声</button>
+
+    <footer class="credit">
+      <span>原创程序化声源</span>
+      <span aria-hidden="true">·</span>
+      <span>Canvas + Web Audio</span>
+    </footer>
+
+    <noscript>此互动需要启用 JavaScript。</noscript>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
