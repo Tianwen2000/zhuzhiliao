@@ -11,6 +11,12 @@
   const gesture = document.getElementById('gesture');
 
   const TAU = Math.PI * 2;
+  const PRESS_START_SPEED = 4.4;
+  const PRESS_CLICK_BOOST = 2.1;
+  const PRESS_ACCELERATION = 5.2;
+  const PRESS_HOLD_MAX_SPEED = TAU * 6;
+  const CLICK_MAX_DURATION = 260;
+  const COAST_DRAG = 0.9;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const mix = (a, b, t) => a + (b - a) * t;
   const smoothstep = (a, b, value) => {
@@ -49,13 +55,7 @@
   const pointer = {
     down: false,
     id: null,
-    x: 0,
-    y: 0,
-    previousX: 0,
-    previousY: 0,
-    velocityX: 0,
-    velocityY: 0,
-    lastTime: 0,
+    startedAt: 0,
   };
 
   const handle = {
@@ -85,6 +85,11 @@
   const auto = {
     enabled: false,
     phase: 0,
+  };
+
+  const spin = {
+    phase: 0,
+    speed: 0,
   };
 
   class BambooVoice {
@@ -365,6 +370,8 @@
     toy.velocityY = 0;
     toy.angle = Math.atan2(toy.y - handle.y, toy.x - handle.x);
     toy.previousAngle = toy.angle;
+    spin.phase = toy.angle;
+    spin.speed = 0;
   }
 
   function resize() {
@@ -402,6 +409,7 @@
       interacted = true;
       gesture.classList.add('is-hidden');
       auto.phase = toy.angle;
+      spin.speed = 0;
       voice.unlock();
     }
   }
@@ -422,8 +430,6 @@
     if (auto.enabled) {
       auto.phase += dt * 10.8;
     }
-    pointer.velocityX *= Math.exp(-dt * 4.5);
-    pointer.velocityY *= Math.exp(-dt * 4.5);
   }
 
   function simulate(dt) {
@@ -433,8 +439,27 @@
     let dy = toy.y - handle.y;
     let distance = Math.hypot(dx, dy) || 1;
     let stretch = 0;
-    const pointerSpeed = Math.hypot(pointer.velocityX, pointer.velocityY);
-    const manualDrive = pointer.down && pointerSpeed > 70;
+
+    if (!auto.enabled) {
+      if (pointer.down) {
+        const isLongPress = performance.now() - pointer.startedAt > CLICK_MAX_DURATION;
+        if (isLongPress && spin.speed > PRESS_HOLD_MAX_SPEED) {
+          spin.speed = PRESS_HOLD_MAX_SPEED;
+        }
+        if (spin.speed < PRESS_HOLD_MAX_SPEED) {
+          spin.speed = Math.min(
+            Math.max(spin.speed, PRESS_START_SPEED) + PRESS_ACCELERATION * dt,
+            PRESS_HOLD_MAX_SPEED,
+          );
+        }
+      } else {
+        spin.speed *= Math.exp(-dt * COAST_DRAG);
+        if (spin.speed < 0.04) spin.speed = 0;
+      }
+      spin.phase += spin.speed * dt;
+    }
+
+    const spinActive = !auto.enabled && spin.speed > 0;
 
     if (auto.enabled) {
       const previousX = toy.x;
@@ -443,11 +468,11 @@
       toy.y = handle.y + Math.sin(auto.phase) * ropeLength;
       toy.velocityX = (toy.x - previousX) / dt;
       toy.velocityY = (toy.y - previousY) / dt;
-    } else if (manualDrive) {
+    } else if (spinActive) {
       const previousX = toy.x;
       const previousY = toy.y;
-      toy.x = handle.x - pointer.velocityX / pointerSpeed * ropeLength;
-      toy.y = handle.y - pointer.velocityY / pointerSpeed * ropeLength;
+      toy.x = handle.x + Math.cos(spin.phase) * ropeLength;
+      toy.y = handle.y + Math.sin(spin.phase) * ropeLength;
       toy.velocityX = (toy.x - previousX) / dt;
       toy.velocityY = (toy.y - previousY) / dt;
     } else {
@@ -482,10 +507,10 @@
     dx = toy.x - handle.x;
     dy = toy.y - handle.y;
     distance = Math.hypot(dx, dy) || 1;
-    const tensionTarget = auto.enabled || manualDrive
+    const tensionTarget = auto.enabled || spinActive
       ? 1
       : smoothstep(ropeLength * 0.82, ropeLength, distance + stretch);
-    toy.tension = mix(toy.tension, tensionTarget, auto.enabled || manualDrive ? 0.24 : 0.15);
+    toy.tension = mix(toy.tension, tensionTarget, auto.enabled || spinActive ? 0.24 : 0.15);
     toy.previousAngle = toy.angle;
     toy.angle = Math.atan2(dy, dx);
     const angleDelta = wrapAngle(toy.angle - toy.previousAngle);
@@ -712,41 +737,29 @@
     if (pointer.down) return;
     pointer.down = true;
     pointer.id = event.pointerId;
-    pointer.x = event.clientX;
-    pointer.y = event.clientY;
-    pointer.previousX = pointer.x;
-    pointer.previousY = pointer.y;
-    pointer.velocityX = 0;
-    pointer.velocityY = 0;
-    pointer.lastTime = event.timeStamp;
+    pointer.startedAt = event.timeStamp;
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('is-dragging');
     gesture.classList.add('is-hidden');
     interacted = true;
+    const inheritedSpeed = auto.enabled
+      ? Math.max(10.8, Math.abs(toy.angularVelocity))
+      : spin.speed;
     if (auto.enabled) setAuto(false);
+    spin.phase = toy.angle;
+    spin.speed = Math.max(inheritedSpeed, PRESS_START_SPEED);
     await voice.unlock();
-  });
-
-  canvas.addEventListener('pointermove', (event) => {
-    if (!pointer.down || event.pointerId !== pointer.id) return;
-    const elapsed = clamp((event.timeStamp - pointer.lastTime) / 1000, 1 / 240, 0.08);
-    const velocityX = (event.clientX - pointer.previousX) / elapsed;
-    const velocityY = (event.clientY - pointer.previousY) / elapsed;
-    pointer.velocityX = mix(pointer.velocityX, velocityX, 0.58);
-    pointer.velocityY = mix(pointer.velocityY, velocityY, 0.58);
-    pointer.x = event.clientX;
-    pointer.y = event.clientY;
-    pointer.previousX = pointer.x;
-    pointer.previousY = pointer.y;
-    pointer.lastTime = event.timeStamp;
   });
 
   const releasePointer = (event) => {
     if (!pointer.down || (event && event.pointerId !== pointer.id)) return;
+    const isClick = event?.type === 'pointerup'
+      && event.timeStamp - pointer.startedAt <= CLICK_MAX_DURATION;
     pointer.down = false;
     pointer.id = null;
-    pointer.velocityX = 0;
-    pointer.velocityY = 0;
+    if (isClick) {
+      spin.speed = Math.max(spin.speed + PRESS_CLICK_BOOST, PRESS_START_SPEED);
+    }
     canvas.classList.remove('is-dragging');
   };
 
@@ -802,6 +815,8 @@
         sound: voice.enabled,
         audioState: voice.context ? voice.context.state : 'none',
         interacted,
+        pressing: pointer.down,
+        spinRps: spin.speed / TAU,
         handle: { x: handle.x, y: handle.y },
         toy: { x: toy.x, y: toy.y },
       };

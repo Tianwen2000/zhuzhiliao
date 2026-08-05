@@ -39,12 +39,12 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: grab;
+  cursor: pointer;
   touch-action: none;
 }
 
 #scene.is-dragging {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .brand {
@@ -196,46 +196,26 @@ body {
 .gesture {
   position: fixed;
   left: 50%;
-  bottom: 13%;
-  width: 74px;
-  height: 74px;
-  margin-left: -37px;
+  bottom: 14%;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 7px 12px;
+  border-left: 2px solid var(--lacquer);
+  color: rgba(244, 237, 219, 0.78);
+  background: rgba(17, 24, 32, 0.42);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
   pointer-events: none;
-  opacity: 0.72;
-  transition: opacity 500ms ease;
+  opacity: 0.86;
+  transform: translateX(-50%);
+  transition: opacity 500ms ease, transform 500ms ease;
 }
 
 .gesture.is-hidden {
   opacity: 0;
-}
-
-.gesture__track {
-  position: absolute;
-  inset: 4px;
-  border: 1px dashed rgba(244, 237, 219, 0.4);
-  border-radius: 50%;
-}
-
-.gesture__point {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  background: var(--lacquer);
-  animation: circle-cue 2.2s linear infinite;
-}
-
-@keyframes circle-cue {
-  to {
-    transform: rotate(360deg) translateY(31px) rotate(-360deg);
-  }
-  from {
-    transform: rotate(0deg) translateY(31px) rotate(0deg);
-  }
+  transform: translateX(-50%) translateY(6px);
 }
 
 .audio-gate {
@@ -315,7 +295,8 @@ noscript {
   }
 
   .gesture {
-    bottom: 17%;
+    bottom: 18%;
+    font-size: 12px;
   }
 
   .audio-gate {
@@ -324,10 +305,6 @@ noscript {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gesture__point {
-    animation-duration: 4.4s;
-  }
-
   .icon-button {
     transition: none;
   }
